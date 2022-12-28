@@ -1,0 +1,279 @@
+---
+title: "Un modèle prédictif, ça ne sert pas, au final, à faire une prédiction"
+description: "Vous vous interrogez sur la mise en œuvre, dans le cadre de la décision partagée, de l'inspection des algorithmes d'intérêt général ? À partir d'un exemple concret, découvrons l'analyse exploratoire des modèles."
+lang: fr
+author:
+  - name: Sylvie Meunier
+date: "2022-12-30"
+date-format: long
+categories: 
+  - évaluation des modèles
+image: descartes.jpg
+reference-location: margin
+citation-location: margin
+tbl-cap-location: top
+format: 
+  html:
+    toc: true
+    toc-title: Sommaire de l'article
+    html-math-method: katex
+    link-external-newwindow: true
+    link-external-icon: true
+    code-line-numbers: true
+execute: 
+  cache: false
+---
+
+![Christine de Suède en discussion avec René Descartes, d'après Pierre Louis Dumesnil (1698-1781), détail.](descarteslarg.png)
+
+> Ces longues chaînes de raisons, toutes simples et faciles, dont les géomètres ont coutume de se servir, pour parvenir à leurs plus difficiles démonstrations, m'avaient donné occasion de m'imaginer que toutes les choses qui peuvent tomber sous la connaissance des hommes s'entre-suivent en même façon (...)
+
+René Descartes, *Discours de la méthode*, 1637.
+
+\
+
+Dévoiler les règles d'un traitement algorithmique a été voulu par le législateur[^1] afin de rendre compte du raisonnement sous-jacent adopté et de garantir la régularité des décisions administratives individuelles.
+
+[^1]: [Expliquer les algorithmes publics](https://guides.etalab.gouv.fr/algorithmes/), guide en ligne élaboré par Etalab, département de la direction interministérielle du numérique de l'État.
+
+Cette même démarche, celle de la mise à nu du fonctionnement d'un modèle, doit constituer, de la même manière, un passage obligé des choix démocratiques dès lors que l'action publique intègre un système d'intelligence artificielle.
+
+Mais comment, notamment dans le cadre de la décision partagée ?
+
+L'approche *Responsable AI,* ainsi que l'une de ses techniques, l'**analyse exploratoire des modèles** (EMA), me semblent être les bons outils à mobiliser. Il m'est agréable ici de recommander les ouvrages de [Julia Silge & Max Kuhn](https://www.tmwr.org/explain.html "Tidy modeling with R, chapitre 18"), de [Christoph Molnar](https://christophm.github.io/interpretable-ml-book/ "Interpretable Machine Learning. A Guide for Making Black Box Models Explainable") ou encore de [Przemyslaw Biecek & Tomasz Burzykowski](https://ema.drwhy.ai/ "Explanatory Model Analysis"). Leur présentation de l'EMA est lumineuse et ce billet leur doit tant.
+
+### 1. L'analyse exploratoire des modèles ?
+
+Les modèles construits pour représenter un phénomène sont évalués pour conserver le meilleur. Mais la performance prédictive est-elle le seul outil à notre disposition ?
+
+Schéma simplifié de l'EMA centré sur le principe de redevabilité et les acteurs concernés.
+
+L'EMA partage avec l'EDA une méthode itérative.
+
+### 2. Cas : la qualité de vie dans les quartiers
+
+La ville représente pour ses habitants la première manifestation de l'État. À ce titre, il lui incombe d'organiser les services publics et de favoriser la cohésion sociale par tout levier d'action publique mobilisable.
+
+Identifier les signes avant-coureurs de fragmentation du tissu social et en évaluer l'ampleur est par conséquent un enjeu politique majeur. La poursuite de cet objectif peut aujourd'hui s'appuyer sur un matériau d'usage courant, les enquêtes de satisfaction concernant les aménités urbaines et les caractéristiques sociaux-démographiques de la population.
+
+Afin d'illustrer mon propos, je vous invite à plonger sans plus attendre dans un exercice de modélisation de la qualité de vie telle que décrite par les habitants eux-mêmes. Le jeu de données sur lequel nous allons travailler a été construit à partir de l'enquête *Perception Survey on the Quality of Life (QoL) in European Cities* [^2] (édition 2019, **données agrégées**). Cette enquête est menée depuis 2007 par la Direction générale de la politique régionale et urbaine (Commission européenne) auprès d'un panel de 700 habitants pour chacune des 83 métropoles d'Europe analysées.
+
+[^2]: Fichiers et Rapport 2020 : [DG REGIO](https://ec.europa.eu/regional_policy/en/information/maps/quality_of_life/). NB : une réponse est un score allant de 1 à 4.
+
+D'un point de vue méthodologique, il nous est apparu judicieux de déplacer le terrain d'observation de la ville vers le quartier. Ce choix repose sur l'épaisseur socio-historique qui est traditionnellement attachée à la notion de quartier : nous espérons ainsi obtenir un tableau comparatif, quartier par quartier, plus contrasté et donc plus apte à saisir les convictions qui se cristallisent autour de la qualité de vie.
+
+Ce changement d'échelle a été opéré grâce à la question q4_01[^3] de l'enquête *Perception Survey on the Quality of Life (QoL) in European Cities*. La variable d'intérêt, `qscore`, créée à partir de cette question, représente la proportion de répondants se déclarant **très** satisfaits de leur quartier.
+
+[^3]: "... on the whole, are you very satisfied, fairly satisfied, not very satisfied or not at all satisfied with: - The neighbourhood where you live ..."
+
+79 villes et 102 paramètres ont été intégrés dans notre étude et quelques variables hors sujet ont été supprimées.
+
+```{r setup}
+#| echo: false
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(tidymodels)
+library(knitr)
+library(kableExtra)
+library(luciole)
+add_luciole()
+
+knitr::opts_chunk$set(out.width = '100%',
+                      message = FALSE, warning = FALSE,
+                      comment = FALSE)
+```
+
+```{r}
+#| echo: true
+#| warning: false
+#| message: false
+#| label: tbl-cap-margin
+#| tbl-cap: "Variable d'intérêt et variables purement descriptives"
+#| cap-location: margin
+#| tbl-column: body
+
+data <- read.csv("qol2019.csv")
+set.seed(2022)
+ 
+data |>
+select(city:area,qscore) |>
+group_by(area) |>
+slice_sample(n = 2, replace = FALSE) |>
+mutate(across(where(is.numeric), round, digits=2)) |>
+kbl("html") |>
+kable_styling(
+  bootstrap_options = c("striped", "hover", 
+                        "condensed", "responsive"), 
+  full_width = FALSE
+  )
+```
+
+\
+
+::: {.panel-tabset group="tools-tabset"}
+## variable d'intérêt
+
+![](target.png)
+
+## analyse géographique
+
+![](carto.png)
+
+## perception vs urbanisation
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+
+library(highcharter)
+
+series <- 
+  data %>%
+  select(city,country,area,pop,qscore) %>%
+  mutate(area = fct_reorder(area, -qscore)) %>%
+  add_count(area) %>%
+  group_by(area) %>%
+  mutate(qscore = round(qscore,4)*100,
+         mean_qscore = round(mean(qscore),2),
+         min_qscore = min(qscore),
+         max_qscore = max(qscore),
+         median_pop = round(median(pop)),
+         min_pop = min(pop),
+         max_pop = max(pop)) %>%
+  arrange(desc(mean_qscore))
+
+
+colrs <- c("#ff00ff","#8b008b","#904ef6", "#008000","#52fc00", "#5f9f6b")
+hchart(series, "scatter",
+       hcaes(x = pop,color = area, size = pop, y = qscore, group = area,
+             color = colorize(area,colrs)), color = colrs) %>% 
+  hc_chart(style = list(fontFamily = "Luciole")) %>%
+  hc_title(text = "<b>Taux de personnes très satisfaites de leur quartier 
+           selon la taille de l'unité urbaine</b>",
+           align = "left") %>%
+  hc_subtitle(text = "<b>Qualité de vie élevée et phénomène d'urbanisation</b>",
+              align = "left", style = list(fontSize = "15px")) %>%
+  hc_tooltip(pointFormat = "<b>{point.city}</b> (<b>{point.series.name}</b>) <br>
+             Pays : {point.country} <br> 
+             Population : <b>{point.x:,.0f}</b> hab. <br> 
+             Excellente qualité de vie : <b>{point.y}</b> <br><br> 
+             Cohorte <b>{point.area}</b> : <b>{point.n}</b> villes",
+             valueSuffix = "%",
+             sort = TRUE,
+             useHTML = TRUE,
+             crosshairs = TRUE,
+             borderWidth = 4,
+             headerFormat = " ",
+             footerFormat = " ") %>%
+  hc_legend(useHTML = TRUE,
+            enable = TRUE) %>%
+  hc_xAxis(title = list(text = "<b>log(pop)</b>"),
+           type = "logarithmic",
+           max = 9500000) %>%
+  hc_yAxis(title = list(text = "<b>taux de personnes très satisfaites</b>"),
+           labels = list(format = "{value}%", useHTML = TRUE))
+
+```
+
+(*survolez avec la souris chaque bulle et/ou les valeurs de la légende*)\
+:::
+
+Les 102 variables prédictives sélectionnées peuvent être réparties en deux groupes :
+
+-   35 prédicteurs urbains :
+
+    -   dynamisme économique
+    -   infrastructures et aménagements urbains
+    -   services publics
+    -   mobilités
+    -   environnement
+    -   sécurité
+    -   mentalité propre à la ville ;
+
+::: {.panel-tabset group="tools-tabset"}
+### variables \* score (1)
+
+![](urbain1.png)
+
+### variables \* score (2)
+
+![](urbain2.png)
+
+### liste des prédicteurs urbains
+
+```{r}
+#| warning: false
+#| message: false
+#| echo: false
+
+urbain <- data[,c(6:40)]
+A <- matrix(colnames(urbain), ncol = 4)
+A[A[,4] %in% A[,1], 4] <- " "
+kableExtra::kbl(A, "simple")
+```
+:::
+
+-   67 prédicteurs sociaux-démographiques :
+
+    -   genre, âge, état de santé
+    -   composition du ménage
+    -   niveau d'étude
+    -   niveau de revenus
+    -   emploi occupé
+    -   mode de transport privilégié
+    -   degré d'optimisme.
+
+::: {.panel-tabset group="tools-tabset"}
+### variables \* score (1)
+
+![](soc1.png)
+
+### variables \* score (2)
+
+![](soc2.png)
+
+### variables \* score (3)
+
+![](soc3.png)\
+
+### liste des prédicteurs sociaux
+
+```{r}
+#| warning: false
+#| message: false
+#| echo: false
+
+social <- data[,c(41:104)]
+B <- matrix(colnames(social), ncol = 4)
+B[B[,4] %in% B[,1], 4] <- " "
+kableExtra::kbl(B, "simple")
+```
+:::
+
+### 3. Expérimentation : splines & GAMs
+
+Une ligne d'introduction
+
+\
+
+|                 |                |                    |                                             |
+|:----------------|:---------------:|:---------------:|:---------------------:|
+| **Explication** |     locale     |      cohorte       |                   globale                   |
+| **Observation** | élément unique |   sous-ensemble    |                  ensemble                   |
+| **Notation**    |     $x_i$      |  $I \subset D_N$   | $D_N=\{(x_i,y_i)\}_1{_\leq{_i{_\leq{_N}}}}$ |
+| **Phénomène**   |    individu    | groupe d'individus |                 population                  |
+
+: Les échelles d'analyse post-modélisation.
+
+\
+
+A nouveau un paragraphe.
+
+::: column-margin
+Rappel : un modèle de régression linéaire multiple pour $n$ observations collectées et $p$ variables s'écrit de la manière suivante :
+
+$$y_i = \beta_0 + \beta_1 x_i{_1} + ... + \beta_p x_i{_p} + \epsilon_i,$$ $$i = 1,...,n$$
+:::

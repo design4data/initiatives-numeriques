@@ -1,0 +1,21 @@
+---
+title: "Blog en forme de boussole ..."
+lang: fr
+listing:
+  contents: blog
+  categories: true
+  date-format: long
+  filter-ui: false
+  image-align: "left"
+  sort: "date asc"
+  sort-ui: false
+  type: default
+  template: custom.ejs
+format: 
+  html:
+    page-layout: article
+---
+
+[*" ... pour le lecteur curieux qui entend participer pleinement à la conception des systèmes d'intelligence artificielle open source ... "*]{style="color: purple;font-family: 'Homemade Apple', cursive;font-size: 24px"}
+
+\

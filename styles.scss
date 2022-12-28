@@ -1,0 +1,81 @@
+/*-- scss:defaults --*/
+
+// Fonts
+
+$font-family-sans-serif:  "luciole" !default;
+$font-family-serif:       "luciole" !default;
+
+$font-size-base:              0.9rem !default;
+$figcaption-font-size:        0.6rem !important;
+
+// Nav bar
+
+.li.a.dropdown-item {
+  color: "#2B2423";
+}
+
+.dropdown-text {
+  color: "#FFFFFF";
+}
+
+// Typography
+
+h1.title {
+  font-family: "luciole";
+  font-size: 27px;
+}
+
+h1.title.display-7 {
+  font-family: "luciole";
+}
+
+p.subtitle.lead {
+  text-align: center;
+}
+
+a:href {
+  color: #00ab6b;
+}
+
+a:hover {
+    color: #038252;
+    text-decoration: none;
+}
+
+//** Global textual link color.
+$link-color:            #400080 !default;
+//** Link hover color set via `darken()` function.
+$link-hover-color:      #2c6b67 !default;
+//** Link decoration.
+$link-decoration: none;
+$link-hover-decoration: none;
+
+$code-block-bg: #2B2423;
+
+.navbar {
+  color: #f7f7f4;
+}
+
+.navbar-title {
+  color: #2c6b67;
+  font-family: "luciole";
+  font-size: 32px;
+}
+
+a.sidebar-item-text.sidebar-link {
+    color: none;
+}
+
+.navbar li.dropdown-header {
+  text-transform: none;
+}
+
+.quarto-listing-category {
+    font-family: "luciole";
+    font-size: 10px;
+}
+
+.quarto-listing-category-title {
+    font-family: "luciole";
+    font-size: 10px;
+}

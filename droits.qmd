@@ -1,0 +1,10 @@
+---
+title: "© Copyright 2022 Sylvie Meunier. Licence"
+---
+© Copyright Sylvie Meunier. Ce site est strictement personnel. Les opinions ici exprimées sont les miennes. Elles n'émanent pas et n'engagent en aucune manière un employeur passé ou actuel ou une organisation à laquelle j'adhère. 
+
+Licence du site : [Creative Commons (CC-BY) 4.0 license](https://creativecommons.org/licenses/by/4.0/legalcode).
+
+Il est possible de réutiliser le contenu des articles à condition de citer les prénom et nom de l'auteur et de fournir un lien URL valide vers l'original. 
+
+Le code source du site est sous licence [MIT](https://opensource.org/licenses/MIT) et peut être réutilisé sans restriction.
